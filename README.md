@@ -1,4 +1,4 @@
-# Pokemon CLI
+# Pokedex CLI
 
 A command-line interface for exploring the Pokemon world using the PokeAPI.
 
