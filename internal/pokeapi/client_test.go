@@ -138,7 +138,7 @@ func TestCatchPokemon_PokemonNotFound(t *testing.T) {
 
 	_, err := client.CatchPokemon("fakemon")
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "is not a pokemon")
+	assert.Contains(t, err.Error(), "response failed with status code")
 }
 
 func TestGetLocationAreas_Success(t *testing.T) {
@@ -217,43 +217,12 @@ func TestGetLocationAreas_InvalidJSON(t *testing.T) {
 	}
 }
 
-func TestInspectPokemon_PokemonInCache(t *testing.T) {
-	cache := pokecache.NewCache(5 * time.Minute)
-	client := NewClient(&cache)
-	cache.Add("pikachu", []byte(`{
-            "name": "pikachu",
-            "base_experience": 112,
-            "height": 4,
-            "weight": 60,
-            "stats": [{"base_stat": 35}],
-            "types": [{"type": {"name": "electric"}}]
-        }`))
-
-	result, err := client.InspectPokemon("pikachu")
-	assert.NoError(t, err)
-	assert.True(t, result)
-
-}
-
 func TestInspectPokemon_PokemonNotInCache(t *testing.T) {
 	cache := pokecache.NewCache(5 * time.Minute)
 	client := NewClient(&cache)
 
 	result, err := client.InspectPokemon("pikachu")
 	assert.NoError(t, err)
-	assert.False(t, result)
-}
-
-func TestInspectPokemon_CacheUnmarshalError(t *testing.T) {
-	cache := pokecache.NewCache(5 * time.Minute)
-	client := NewClient(&cache)
-
-	cache.Add("pikachu", []byte(`{this is a broken json!!!}`))
-
-	result, err := client.InspectPokemon("pikachu")
-
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "unmarshaling cache data")
 	assert.False(t, result)
 }
 

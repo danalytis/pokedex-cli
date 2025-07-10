@@ -3,10 +3,11 @@ package pokeapi
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/danalytis/pokedexcli/internal/pokecache"
 	"io"
 	"math/rand"
 	"net/http"
+
+	"github.com/danalytis/pokedexcli/internal/pokecache"
 )
 
 type Client struct {
@@ -94,33 +95,15 @@ func (c *Client) fetchAndCache(url string, target interface{}) error {
 func calculateCatchChance(baseExperience int) int {
 	maxCatchChance := 60
 	catchChance := maxCatchChance - (baseExperience / 10)
-	if catchChance < 5 {
-		catchChance = 5
-	}
-	return catchChance
+
+	return max(5, catchChance)
 }
 
 func (c *Client) CatchPokemon(name string) (bool, error) {
 	url := c.PokeapiBaseURL + "pokemon/" + name
-
-	res, err := http.Get(url)
-	if err != nil {
-		return false, err
-	}
-	defer res.Body.Close()
-
-	if res.StatusCode == 404 {
-		return false, fmt.Errorf("%s is not a pokemon", name)
-	} else if res.StatusCode > 299 {
-		return false, fmt.Errorf("response failed with status code: %d", res.StatusCode)
-	}
-	body, err := io.ReadAll(res.Body)
-	if err != nil {
-		return false, err
-	}
-
 	var pokemon Pokemon
-	err = json.Unmarshal(body, &pokemon)
+
+	err := c.fetchAndCache(url, &pokemon)
 	if err != nil {
 		return false, err
 	}
@@ -129,9 +112,9 @@ func (c *Client) CatchPokemon(name string) (bool, error) {
 	randomRoll := rand.Intn(100)
 
 	if randomRoll < catchChance {
-		c.Cache.Add(name, body)
 		c.Pokedex[name] = pokemon
 	}
+
 	return randomRoll < catchChance, nil
 }
 
@@ -139,9 +122,7 @@ func (c *Client) InspectPokemon(name string) (bool, error) {
 
 	statNames := []string{"hp", "attack", "defense", "special-attack", "special-defense", "speed"}
 
-	var pokemon Pokemon
-
-	result, ok := c.Cache.Get(name)
+	_, ok := c.Pokedex[name]
 
 	if !ok {
 		fmt.Println("You have not caught this pokemon yet..")
@@ -157,21 +138,17 @@ func (c *Client) InspectPokemon(name string) (bool, error) {
 		return false, nil
 	}
 
-	err := json.Unmarshal(result, &pokemon)
-	if err != nil {
-		return false, fmt.Errorf("error unmarshaling cache data %w", err)
-	}
 	fmt.Printf("Name: %s\nHeight: %d\nWeight: %d\n",
-		pokemon.Name,
-		pokemon.Height,
-		pokemon.Weight)
+		c.Pokedex[name].Name,
+		c.Pokedex[name].Height,
+		c.Pokedex[name].Weight)
 
 	fmt.Println("Stats:")
-	for i, val := range pokemon.Stats {
+	for i, val := range c.Pokedex[name].Stats {
 		fmt.Printf(" - %s: %d\n", statNames[i], val.BaseStat)
 	}
 	fmt.Println("Types:")
-	for _, typeName := range pokemon.Types {
+	for _, typeName := range c.Pokedex[name].Types {
 		fmt.Printf(" - %s\n", typeName.Type.Name)
 	}
 

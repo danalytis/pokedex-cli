@@ -45,15 +45,15 @@ func (c *Cache) Get(key string) ([]byte, bool) {
 func (c *Cache) reapLoop(ticker *time.Ticker) {
 	for range ticker.C {
 		c.mu.Lock()
-		defer c.mu.Unlock()
 
+		cutoff := time.Now().Add(-c.interval)
 		for url, entry := range c.cacheEntry {
-			cutoff := time.Now().Add(-c.interval)
 			if entry.createdAt.Before(cutoff) {
 				delete(c.cacheEntry, url)
 			}
 		}
 
+		c.mu.Unlock()
 	}
 }
 
