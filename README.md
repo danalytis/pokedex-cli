@@ -11,7 +11,7 @@ This CLI application allows users to explore Pokemon locations, catch Pokemon, a
 ## Quick Start
 
 ```bash
-git clone https://github.com/yourusername/pokedexcli.git
+git clone https://github.com/danalytis/pokedexcli.git
 cd pokedexcli
 go build
 ./pokedexcli
