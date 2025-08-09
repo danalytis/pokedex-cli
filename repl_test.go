@@ -1,87 +1,35 @@
 package main
 
-import "testing"
+import (
+	"github.com/stretchr/testify/assert"
+	"testing"
+)
 
-func TestCleanInput(t *testing.T) {
-	cases := []struct {
-		input    string
-		expected []string
-	}{
-		{
-			input:    " hello world ",
-			expected: []string{"hello", "world"},
-		},
-		// TODO: add more cases
-	}
-
-	for _, c := range cases {
-		actual := cleanInput(c.input)
-
-		if len(actual) != len(c.expected) {
-			t.Errorf("length mismatch: got %d, want %d for input %q", len(actual), len(c.expected), c.input)
-			continue
-		}
-		for i := range actual {
-			word := actual[i]
-			expectedWord := c.expected[i]
-			if word != expectedWord {
-				t.Errorf("word mismatch at index %d: got %q, want %q for input %q", i, actual[i], c.expected[i], c.input)
-			}
-		}
-	}
-}
-
-// TODO: implement
-// Additional cleanInput tests
-func TestCleanInput_EmptyString(t *testing.T) {
-	// Test empty input returns empty slice
-}
-
-func TestCleanInput_OnlyWhitespace(t *testing.T) {
-	// Test "   " returns empty slice
+func TestCleanInput_Uppercase(t *testing.T) {
+	result := cleanInput("EXPLORE PALLET-TOWN")
+	expected := []string{"explore", "pallet-town"}
+	assert.Equal(t, expected, result)
 }
 
 func TestCleanInput_SingleWord(t *testing.T) {
-	// Test "hello" returns ["hello"]
+	result := cleanInput("help")
+	expected := []string{"help"}
+	assert.Equal(t, expected, result)
 }
 
-func TestCleanInput_MultipleSpaces(t *testing.T) {
-	// Test "hello    world" returns ["hello", "world"]
+func TestCleanInput_EmptyString(t *testing.T) {
+	result := cleanInput("")
+	assert.Equal(t, 0, len(result))
 }
 
-func TestCleanInput_TabsAndNewlines(t *testing.T) {
-	// Test input with \t and \n characters
+func TestCleanInput_ExtraWhitespaces(t *testing.T) {
+	result := cleanInput("   explore   pallet-town  ")
+	expected := []string{"explore", "pallet-town"}
+	assert.Equal(t, expected, result)
 }
 
-// CLI Command tests (if you have command functions)
 func TestCommandHelp(t *testing.T) {
-	// Test help command functionality
-}
-
-func TestCommandExit(t *testing.T) {
-	// Test exit command functionality
-}
-
-func TestCommandMap(t *testing.T) {
-	// Test map command functionality
-}
-
-func TestCommandMapb(t *testing.T) {
-	// Test mapb command functionality
-}
-
-func TestCommandExplore(t *testing.T) {
-	// Test explore command with valid area
-}
-
-func TestCommandCatch(t *testing.T) {
-	// Test catch command functionality
-}
-
-func TestCommandInspect(t *testing.T) {
-	// Test inspect command functionality
-}
-
-func TestCommandPokedex(t *testing.T) {
-	// Test pokedex command functionality
+	cfg := &config{}
+	err := commandHelp(cfg, []string{})
+	assert.NoError(t, err)
 }

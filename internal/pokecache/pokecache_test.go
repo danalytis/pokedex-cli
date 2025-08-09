@@ -2,6 +2,7 @@ package pokecache
 
 import (
 	"fmt"
+	"sync"
 	"testing"
 	"time"
 
@@ -9,7 +10,7 @@ import (
 )
 
 func TestAddGet(t *testing.T) {
-	const interval = 5 * time.Second
+	const interval = 5 * time.Millisecond
 	cases := []struct {
 		key string
 		val []byte
@@ -57,7 +58,6 @@ func TestGet_NonExistentKey(t *testing.T) {
 }
 
 func TestAdd_OverwriteExistingKey(t *testing.T) {
-
 	cache := NewCache(5 * time.Minute)
 
 	cache.Add("pokemon", []byte("pikachu"))
@@ -91,25 +91,131 @@ func TestAdd_EmptyValue(t *testing.T) {
 	assert.False(t, ok)
 }
 
-// TODO: implement
-// Timing and expiration
+// Test that reap loop cleans multiple expired entries
 func TestReapLoop_MultipleEntries(t *testing.T) {
-	// Test that reap loop cleans multiple expired entries
+	cases := []string{
+		"https://example.com",
+		"https://example2.com",
+		"https://example3.com",
+	}
+
+	const baseTime = 5 * time.Millisecond
+	const waitTime = baseTime + 5*time.Millisecond
+	cache := NewCache(baseTime)
+	for _, url := range cases {
+		cache.Add(url, []byte("testdata"))
+	}
+
+	_, ok := cache.Get("https://example.com")
+	assert.True(t, ok, "expected to find key")
+
+	time.Sleep(waitTime)
+
+	for _, url := range cases {
+		_, ok = cache.Get(url)
+		assert.False(t, ok, "expected to not find key after expiration")
+	}
 }
 
+// Test some entries expire while others don't
 func TestReapLoop_PartialExpiration(t *testing.T) {
-	// Test some entries expire while others don't
+	cases := []struct {
+		key   string
+		found bool
+	}{
+		{
+			key:   "https://example.com",
+			found: false,
+		},
+		{
+			key:   "https://example2.com",
+			found: false,
+		},
+		{
+			key:   "https://example3.com",
+			found: true,
+		},
+	}
+	const baseTime = 5 * time.Millisecond
+	const waitTime = baseTime + 5*time.Millisecond
+	cache := NewCache(baseTime)
+
+	cache.Add("https://example.com", []byte("testdata"))
+	cache.Add("https://example2.com", []byte("testdata"))
+	time.Sleep(waitTime)
+	cache.Add("https://example3.com", []byte("testdata"))
+
+	for _, c := range cases {
+		_, ok := cache.Get(c.key)
+		assert.Equal(t, c.found, ok)
+	}
 }
 
-func TestCache_NoExpiration(t *testing.T) {
-	// Test cache with very long interval doesn't expire
+func TestCache_NoPrematureExpiration(t *testing.T) {
+	const baseTime = 1 * time.Second
+	const waitTime = 500 * time.Millisecond
+
+	cache := NewCache(baseTime)
+	cache.Add("https://example.com", []byte("testdata"))
+	time.Sleep(waitTime)
+
+	_, ok := cache.Get("https://example.com")
+	assert.True(t, ok, "expected to find key")
 }
 
-// Concurrency (advanced)
+// Test multiple goroutines adding/getting simultaneously
 func TestCache_ConcurrentAccess(t *testing.T) {
-	// Test multiple goroutines adding/getting simultaneously
+	const baseTime = 1 * time.Second
+
+	cache := NewCache(baseTime)
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	go func() {
+		defer wg.Done()
+		cache.Add("https://example.com", []byte("testdata"))
+	}()
+
+	go func() {
+		defer wg.Done()
+		cache.Add("https://example2.com", []byte("testdata"))
+	}()
+
+	wg.Wait()
+
+	_, ok := cache.Get("https://example.com")
+	assert.True(t, ok, "expected to find key")
+	_, ok = cache.Get("https://example2.com")
+	assert.True(t, ok, "expected to find key")
 }
 
+// Test reaping while other operations are happening
 func TestCache_ConcurrentReap(t *testing.T) {
-	// Test reaping while other operations are happening
+	const baseTime = 10 * time.Millisecond
+	cache := NewCache(baseTime)
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	go func() {
+		defer wg.Done()
+		for i := 0; i < 20; i++ {
+			key := fmt.Sprintf("url%d", i)
+			cache.Add(key, []byte("data"))
+			time.Sleep(2 * time.Millisecond)
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+		for i := 0; i < 20; i++ {
+			key := fmt.Sprintf("url%d", i)
+			cache.Get(key)
+			time.Sleep(2 * time.Millisecond)
+		}
+	}()
+
+	wg.Wait()
+	assert.True(t, true, "concurrent operations completed without panic")
 }
